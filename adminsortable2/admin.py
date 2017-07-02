@@ -17,6 +17,8 @@ else:
 from django.utils.safestring import mark_safe
 from django.conf.urls import url
 from django.contrib import admin, messages
+from django.contrib.contenttypes.forms import BaseGenericInlineFormSet
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.core.paginator import EmptyPage
 from django.core.serializers.json import DjangoJSONEncoder
@@ -34,6 +36,10 @@ from django.forms import widgets
 from django.http import (
     HttpResponse, HttpResponseBadRequest,
     HttpResponseNotAllowed, HttpResponseForbidden)
+from django.core.serializers.json import DjangoJSONEncoder
+from django.contrib.admin import StackedInline, TabularInline
+from django.contrib.contenttypes.admin import GenericStackedInline, GenericTabularInline
+from django.contrib.admin.helpers import ActionForm
 
 __all__ = ['SortableAdminMixin', 'SortableInlineAdminMixin']
 
@@ -57,7 +63,7 @@ def _get_default_ordering(model, model_admin):
         return prefix, field_name
 
 
-class MovePageActionForm(admin.helpers.ActionForm):
+class MovePageActionForm(ActionForm):
     step = forms.IntegerField(
         required=False,
         initial=1,
@@ -426,7 +432,7 @@ class PolymorphicSortableAdminMixin(SortableAdminMixin):
         return self.base_model.objects.aggregate(max_order=Coalesce(Max(self.default_order_field), 0))['max_order']
 
 
-class CustomInlineFormSet(BaseInlineFormSet):
+class CustomInlineFormSet(BaseGenericInlineFormSet):
     def __init__(self, *args, **kwargs):
         self.default_order_direction, self.default_order_field = _get_default_ordering(self.model, self)
 
@@ -449,7 +455,7 @@ class CustomInlineFormSet(BaseInlineFormSet):
         obj = super(CustomInlineFormSet, self).save_new(form, commit=False)
         default_order_field = getattr(obj, self.default_order_field, None)
         if default_order_field is None or default_order_field >= 0:
-            query_set = self.model.objects.filter(**{self.fk.get_attname(): self.instance.pk})
+            query_set = self.model.objects.filter(content_type=ContentType.objects.get_for_model(self.instance), object_id=self.instance.pk)
             max_order = query_set.aggregate(max_order=Coalesce(Max(self.default_order_field), 0))['max_order']
             setattr(obj, self.default_order_field, max_order + 1)
         if commit:
@@ -505,8 +511,8 @@ class SortableInlineAdminMixin(SortableAdminBase):
 
     @property
     def template(self):
-        if isinstance(self, admin.StackedInline):
+        if isinstance(self, (StackedInline, GenericStackedInline)):
             return 'adminsortable2/stacked.html'
-        if isinstance(self, admin.TabularInline):
+        if isinstance(self, (TabularInline, GenericTabularInline)):
             return 'adminsortable2/tabular.html'
         raise ImproperlyConfigured('Class {0}.{1} must also derive from admin.TabularInline or admin.StackedInline'.format(self.__module__, self.__class__))
