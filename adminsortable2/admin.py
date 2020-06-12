@@ -16,7 +16,7 @@ else:
     from django.utils.translation import ugettext_lazy as _
 from django.utils.safestring import mark_safe
 from django.conf.urls import url
-from django.contrib import admin, messages
+from django.contrib import messages
 from django.contrib.contenttypes.forms import BaseGenericInlineFormSet
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
@@ -31,12 +31,10 @@ from django.db.models.aggregates import Max
 from django.db.models.expressions import F
 from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save, pre_save
-from django.forms.models import BaseInlineFormSet
 from django.forms import widgets
 from django.http import (
     HttpResponse, HttpResponseBadRequest,
     HttpResponseNotAllowed, HttpResponseForbidden)
-from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.admin import StackedInline, TabularInline
 from django.contrib.contenttypes.admin import GenericStackedInline, GenericTabularInline
 from django.contrib.admin.helpers import ActionForm
@@ -310,7 +308,7 @@ class SortableAdminMixin(SortableAdminBase):
         with transaction.atomic():
             try:
                 obj = model.objects.get(**obj_filters)
-            except model.MultipleObjectsReturned as exc:
+            except model.MultipleObjectsReturned:
                 msg = "Detected non-unique values in field '{0}' used for sorting this model.\nConsider to run \n"\
                       "    python manage.py reorder {1}\n"\
                       "to adjust this inconsistency."
@@ -500,11 +498,11 @@ class SortableInlineAdminMixin(SortableAdminBase):
             super(SortableInlineAdminMixin, self).media
             + widgets.Media(js=('adminsortable2/js/libs/jquery.ui.sortable-1.11.4.js',
                                 'adminsortable2/js/inline-sortable.js')))
-        if isinstance(self, admin.StackedInline):
+        if isinstance(self, StackedInline):
             return shared + widgets.Media(
                 js=('adminsortable2/js/inline-sortable.js',
                     'adminsortable2/js/inline-stacked.js'))
-        if isinstance(self, admin.TabularInline):
+        if isinstance(self, TabularInline):
             return shared + widgets.Media(
                 js=('adminsortable2/js/inline-sortable.js',
                     'adminsortable2/js/inline-tabular.js'))
